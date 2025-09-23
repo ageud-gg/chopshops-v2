@@ -1,7 +1,11 @@
 Shared = {}
 
+Shared.CooldownTime = 1300 -- Cooldown between Jobs, In Seconds
+Shared.NotifyScript = 'ox' -- ox for ox_lib, qb for qb_core
+Shared.FuelScript = 'cdn-fuel' -- isnt used i think
 
-Shared.FuelScript = 'LegacyFuel' 
+Shared.PedModel = 'mp_m_waremech_01' -- Ped Model to interact with https://docs.fivem.net/docs/game-references/ped-models/
+Shared.PedCoords = vector4(2352.12, 3129.08, 48.21, 347.98) -- Where to spawn ped
 
 Shared.Vehicles = { 
     'felon',

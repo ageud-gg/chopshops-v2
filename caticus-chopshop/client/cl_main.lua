@@ -11,6 +11,9 @@ local chopVehicle = 0
 local dropOffZone = nil
 local dropOffBlip = nil
 
+local canStart = true
+local totalwait = Shared.CooldownTime
+
 local vehMods = { -- You can add more here
     0, -- Spoiler
     1, -- Front Bumper
@@ -190,7 +193,12 @@ local ChopVehicle = function(veh)
     end
 
     -- Notification and cleanup
-    TriggerEvent('QBCore:Notify', 'You have finished chopping', 'success')
+	if Shared.NotifyScript == 'ox' then
+		TriggerEvent('ox_lib:notify', { title = 'Finished', type = 'success', description = 'You have finished chopping'})
+	elseif Shared.NotifyScript == 'qb' then
+		TriggerEvent('QBCore:Notify', 'You have finished chopping', 'success')
+	end
+	
     TriggerServerEvent('caticus-chopshop:server:Reward', 'cash')
     chopVehicle = 0
     Wait(5000)
@@ -275,15 +283,34 @@ local EnableUpgrades = function(vehicle)
 end
 
 local ReceiveMission = function()
-    SetTimeout(math.random(2500, 4000), function()
-        local charinfo = QBCore.Functions.GetPlayerData().charinfo
-        local model = Shared.Vehicles[math.random(#Shared.Vehicles)]
-        QBCore.Functions.TriggerCallback('caticus-chopshop:server:GetPlate', function(result)
-            local plate = result
-            -- Directly accept the mission
-            TriggerEvent('caticus-chopshop:client:AcceptMission', { model = model, plate = plate })
-        end)
-    end)
+	if canStart then
+		SetTimeout(math.random(0, 0), function()
+			local charinfo = QBCore.Functions.GetPlayerData().charinfo
+			local model = Shared.Vehicles[math.random(#Shared.Vehicles)]
+			QBCore.Functions.TriggerCallback('caticus-chopshop:server:GetPlate', function(result)
+				local plate = result
+				-- Directly accept the mission
+				TriggerEvent('caticus-chopshop:client:AcceptMission', { model = model, plate = plate })
+				canStart = false
+				spawnwait()
+			end)
+		end)
+	else
+		if Shared.NotifyScript == 'ox' then
+			TriggerEvent('ox_lib:notify', { title = 'Cooldown!', type = 'error', description = string.format("Please wait %s Minutes", math.floor(totalwait/60))})
+		elseif Shared.NotifyScript == 'qb' then
+			TriggerEvent('QBCore:Notify', string.format("Please wait %s Minutes", math.floor(totalwait/60)), 'error')
+		end
+	end
+end
+-- Custom waiting cooldown
+function spawnwait()
+ -- seconds
+	while totalwait > 0 do
+		Citizen.Wait(1000)
+		totalwait = totalwait - 1
+	end
+	canStart = true
 end
 
 RegisterNetEvent('caticus-chopshop:client:AcceptMission', function(data)
@@ -295,7 +322,12 @@ RegisterNetEvent('caticus-chopshop:client:AcceptMission', function(data)
     local randLoc = math.random(#Shared.Locations)
     local vehLoc = Shared.Locations[randLoc]
     SetNewWaypoint(vehLoc.x, vehLoc.y)
-    TriggerEvent('QBCore:Notify', 'A waypoint has been set to the search area.', 'success')
+	
+	if Shared.NotifyScript == 'ox' then
+		TriggerEvent('ox_lib:notify', { title = 'Go search', type = 'success', description = 'A waypoint has been set to the search area.'})
+	elseif Shared.NotifyScript == 'qb' then
+		TriggerEvent('QBCore:Notify', 'A waypoint has been set to the search area.', 'success')
+	end
     -- ...
     
     -- Area Zone
@@ -317,7 +349,11 @@ RegisterNetEvent('caticus-chopshop:client:AcceptMission', function(data)
             -- Destroy Zone
             areaZone:destroy()
             -- Notify
-            TriggerEvent('QBCore:Notify', 'find and steal the wanted vehicle', 'success')
+			if Shared.NotifyScript == 'ox' then
+				TriggerEvent('ox_lib:notify', { title = 'Find it', type = 'success', description = 'find and steal the wanted vehicle'})
+			elseif Shared.NotifyScript == 'qb' then
+				TriggerEvent('QBCore:Notify', 'find and steal the wanted vehicle', 'success')
+			end
         end
     end)
     
@@ -340,7 +376,12 @@ RegisterNetEvent('caticus-chopshop:client:AcceptMission', function(data)
     local dropOffLoc = Shared.DropOffLocations[math.random(#Shared.DropOffLocations)]
     -- Set waypoint to the drop-off zone
     SetNewWaypoint(dropOffLoc.x, dropOffLoc.y)
-    TriggerEvent('QBCore:Notify', 'Head to chop shop', 'success')
+	
+	if Shared.NotifyScript == 'ox' then
+		TriggerEvent('ox_lib:notify', { title = 'Start driving', type = 'success', description = 'Head to chop shop'})
+	elseif Shared.NotifyScript == 'qb' then
+		TriggerEvent('QBCore:Notify', 'Head to chop shop', 'success')
+	end
 
     dropOffBlip = CreateDropOffBlip(dropOffLoc)
     dropOffZone = CircleZone:Create(dropOffLoc, 4.0, {
@@ -360,7 +401,11 @@ RegisterNetEvent('caticus-chopshop:client:AcceptMission', function(data)
                     while inZone and chopVehicle == veh do
                         if IsControlJustPressed(0, 38) then
                             exports['qb-core']:HideText()
-                            TriggerEvent('QBCore:Notify', 'Start chopping the vehicle', 'success')
+							if Shared.NotifyScript == 'ox' then
+								TriggerEvent('ox_lib:notify', { title = 'Start', type = 'success', description = 'Start chopping the vehicle'})
+							elseif Shared.NotifyScript == 'qb' then
+								TriggerEvent('QBCore:Notify', 'Start chopping the vehicle', 'success')
+							end
                             dropOffZone:destroy()
                             RemoveBlip(dropOffBlip)
                             ChopVehicle(chopVehicle)
@@ -396,8 +441,8 @@ local pedCreated = false -- Add this line
 CreateThread(function()
     if not pedCreated then -- Check if the ped hasn't been created yet
         exports['qb-target']:SpawnPed({
-            model = 'ig_josef',
-            coords = vector4(2339.44, 3051.93, 48.15, 273.39),
+            model = Shared.PedModel,
+            coords = Shared.PedCoords,
             minusOne = true,
             freeze = true,
             invincible = true,
